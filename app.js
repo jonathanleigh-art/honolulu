@@ -557,9 +557,8 @@ async function runFoursquareSearch() {
         searchRadius = hood.radius;
     }
 
-    // Format parameters correctly for your Vercel API
-    const params = new URLSearchParams({
-        ll: `${searchLat},${searchLng}`,
+const params = new URLSearchParams({
+        ll: `${searchLat},${searchLng}`, 
         radius: String(searchRadius),
         categories: FSQ_CATEGORIES[category] || '',
         price: BUDGET_TO_FSQ_PRICE[budget] || '',
@@ -569,9 +568,8 @@ async function runFoursquareSearch() {
     const response = await fetch(`/api/search?${params.toString()}`);
 
     if (!response.ok) {
-        // This triggers if the Vercel function returns an error
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Server error');
+        throw new Error(errorData.error || 'Foursquare connection failed');
     }
 
     const data = await response.json();
@@ -581,6 +579,7 @@ async function runFoursquareSearch() {
     results = attachDistances(results);
 
     return results;
+}
 }
 }
 
