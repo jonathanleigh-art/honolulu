@@ -329,7 +329,9 @@ function guessEmoji(name, categoryName) {
 
 // ─── NORMALIZE FOURSQUARE RESULT → our format ────────────────
 function normalizeFSQPlace(place) {
-    const cat = place.categories?.[0] || {};
+   const lat = place.geocodes?.main?.latitude;
+   const lng = place.geocodes?.main?.longitude; 
+   const cat = place.categories?.[0] || {};
     const catName = cat.name || '';
     const catId   = String(cat.id || '');
 
