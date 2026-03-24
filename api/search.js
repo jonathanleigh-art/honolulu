@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     limit: '25',
     fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
     sort: sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
-    v: '20260324' 
+    v: '20231010' 
   });
 
   if (categories && categories !== "") searchParams.set('categories', categories);
@@ -22,9 +22,12 @@ export default async function handler(req, res) {
   try {
     const fsqResponse = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${process.env.FOURSQUARE_API_KEY}`,
+        'Authorization': process.env.FOURSQUARE_API_KEY.startsWith('Bearer') 
+                         ? process.env.FOURSQUARE_API_KEY 
+                         : `Bearer ${process.env.FOURSQUARE_API_KEY}`,
         'Accept': 'application/json',
-        'v': '20260324'
+        'v': '20231010'
+},
       },
     });
 
