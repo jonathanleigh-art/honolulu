@@ -12,7 +12,7 @@
 // ─── STATE ───────────────────────────────────────────────────
 const state = {
     apiKey:  localStorage.getItem('wwdrn_fsq_key') || '',
-    mode:    'curated',   // 'foursquare' | 'curated'
+    mode:    'foursquare',   // 'foursquare' | 'curated'
     userLat: null,
     userLng: null,
     filters: {
@@ -543,24 +543,24 @@ function showDetail(activity, isLive) {
 
 // ─── FOURSQUARE LIVE SEARCH ───────────────────────────────────
 async function runFoursquareSearch() {
-    const { time, budget, category, radius, sort } = state.filters;
+    const { budget, category, radius, sort } = state.filters;
 
     let searchLat, searchLng, searchRadius;
     if (state.userLat !== null) {
         searchLat = state.userLat;
         searchLng = state.userLng;
-        searchRadius = radius !== 'all' ? Math.round(parseFloat(radius) * 1609.34) : 14000;
+        searchRadius = radius !== 'all' ? Math.round(parseFloat(radius) * 1609.34) : 10000;
     } else {
-        const hood = NEIGHBORHOODS[state.filters.neighborhood] || NEIGHBORHOODS.all;
+        const hood = NEIGHBORHOODS.all;
         searchLat = hood.lat;
         searchLng = hood.lng;
         searchRadius = hood.radius;
     }
 
-    // UPDATED: We now call OUR OWN API route instead of Foursquare directly
+    // Format parameters correctly for your Vercel API
     const params = new URLSearchParams({
-       ll: `${searchLat},${searchLng}`,
-       radius: String(searchRadius),
+        ll: `${searchLat},${searchLng}`, // Combines lat and lng into 'll'
+        radius: String(searchRadius),
         categories: FSQ_CATEGORIES[category] || '',
         price: BUDGET_TO_FSQ_PRICE[budget] || '',
         sort: sort
@@ -569,7 +569,9 @@ async function runFoursquareSearch() {
     const response = await fetch(`/api/search?${params.toString()}`);
 
     if (!response.ok) {
-        throw new Error('The server had trouble reaching Foursquare.');
+        // This triggers if the Vercel function returns an error
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Server error');
     }
 
     const data = await response.json();
@@ -579,6 +581,7 @@ async function runFoursquareSearch() {
     results = attachDistances(results);
 
     return results;
+}
 }
 
 // ─── FILTER CURATED LIST ─────────────────────────────────────
@@ -805,13 +808,6 @@ function init() {
         if (e.target === document.getElementById('api-modal'))
             document.getElementById('api-modal').classList.add('hidden');
     });
-
-    // Restore saved key
-    if (state.apiKey && state.apiKey.length > 10) {
-        setFoursquareMode(state.apiKey);
-    } else {
-        setTimeout(() => document.getElementById('api-modal').classList.remove('hidden'), 350);
-    }
 }
 
 document.addEventListener('DOMContentLoaded', init);
