@@ -545,80 +545,38 @@ function showDetail(activity, isLive) {
 async function runFoursquareSearch() {
     const { time, budget, category, radius, sort } = state.filters;
 
-    // Use user location if available, else center of Honolulu
     let searchLat, searchLng, searchRadius;
     if (state.userLat !== null) {
-        searchLat    = state.userLat;
-        searchLng    = state.userLng;
-        searchRadius = radius !== 'all'
-            ? Math.round(parseFloat(radius) * 1609.34) // miles → meters
-            : 14000;
+        searchLat = state.userLat;
+        searchLng = state.userLng;
+        searchRadius = radius !== 'all' ? Math.round(parseFloat(radius) * 1609.34) : 14000;
     } else {
-        const hood   = NEIGHBORHOODS[state.filters.neighborhood] || NEIGHBORHOODS.all;
-        searchLat    = hood.lat;
-        searchLng    = hood.lng;
+        const hood = NEIGHBORHOODS[state.filters.neighborhood] || NEIGHBORHOODS.all;
+        searchLat = hood.lat;
+        searchLng = hood.lng;
         searchRadius = hood.radius;
     }
 
+    // UPDATED: We now call OUR OWN API route instead of Foursquare directly
     const params = new URLSearchParams({
-        ll:     `${searchLat},${searchLng}`,
+        ll: `${searchLat},${searchLng}`,
         radius: String(searchRadius),
-        limit:  '25',
-        fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
-        sort:   sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
+        categories: FSQ_CATEGORIES[category] || '',
+        price: BUDGET_TO_FSQ_PRICE[budget] || '',
+        sort: sort
     });
 
-    // Category filter
-    const catIds = FSQ_CATEGORIES[category];
-    if (catIds) params.set('categories', catIds);
-
-    // Open now — only apply if a specific time is selected (uses current time)
-    if (time !== 'all') params.set('open_now', 'true');
-
-    // Price filter (Foursquare doesn't have "free" — we filter that post-fetch)
-    const fsqPrice = BUDGET_TO_FSQ_PRICE[budget];
-    if (fsqPrice) params.set('price', fsqPrice);
-
-    const url = `https://api.foursquare.com/v3/places/search?${params.toString()}`;
-
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': state.apiKey,
-            'Accept':        'application/json',
-        },
-    });
+    const response = await fetch(`/api/search?${params.toString()}`);
 
     if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        const msg = err.message || `Foursquare error ${response.status}`;
-        if (response.status === 401) throw new Error('Invalid API key. Check your Foursquare key.');
-        if (response.status === 429) throw new Error('Rate limit hit — you\'ve used your free quota for today.');
-        throw new Error(msg);
+        throw new Error('The server had trouble reaching Foursquare.');
     }
 
     const data = await response.json();
     let results = (data.results || []).map(normalizeFSQPlace);
 
-    // Post-process: "free" filter — keep places with priceLevel 0
-    if (budget === '0') {
-        results = results.filter(a => a.priceLevel === 0);
-    }
-
-    // Attach distances
+    if (budget === '0') results = results.filter(a => a.priceLevel === 0);
     results = attachDistances(results);
-
-    // Radius filter (in case user location is set and we want to be strict)
-    if (state.userLat !== null && radius !== 'all') {
-        const maxMiles = parseFloat(radius);
-        results = results.filter(a => a.distance == null || a.distance <= maxMiles);
-    }
-
-    // Sort
-    results.sort((a, b) => {
-        if (sort === 'distance' && a.distance != null && b.distance != null)
-            return a.distance - b.distance;
-        return (b.rating || 0) - (a.rating || 0);
-    });
 
     return results;
 }
