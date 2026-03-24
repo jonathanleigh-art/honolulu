@@ -580,8 +580,6 @@ const params = new URLSearchParams({
 
     return results;
 }
-}
-}
 
 // ─── FILTER CURATED LIST ─────────────────────────────────────
 function filterCurated() {
