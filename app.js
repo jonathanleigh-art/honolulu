@@ -12,7 +12,7 @@
 // ─── STATE ───────────────────────────────────────────────────
 const state = {
     apiKey:  localStorage.getItem('wwdrn_fsq_key') || '',
-    mode:    'foursquare',   // 'foursquare' | 'curated'
+    mode:    'foursquare',
     userLat: null,
     userLng: null,
     filters: {
