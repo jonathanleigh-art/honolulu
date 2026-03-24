@@ -23,12 +23,11 @@ export default async function handler(req, res) {
   try {
     const fsqResponse = await fetch(url, {
       headers: {
-        'Authorization': process.env.FOURSQUARE_API_KEY,
+        'Authorization': `Bearer ${process.env.FOURSQUARE_API_KEY}`,
         'Accept': 'application/json'
       },
     });
 
-    // 2. Safety Check: Did Foursquare say "No"?
     if (!fsqResponse.ok) {
       const errorText = await fsqResponse.text();
       return res.status(fsqResponse.status).json({ error: `Foursquare rejected us: ${errorText}` });
@@ -37,7 +36,6 @@ export default async function handler(req, res) {
     const data = await fsqResponse.json();
     res.status(200).json(data);
   } catch (error) {
-    // 3. This only happens if the actual internet connection fails
     res.status(500).json({ error: `Bridge Crash: ${error.message}` });
   }
 }
