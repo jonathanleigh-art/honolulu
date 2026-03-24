@@ -27,13 +27,14 @@ module.exports = async function handler(req, res) {
   if (price      && price      !== '') searchParams.set('price',      price);
   if (open_now   === 'true')           searchParams.set('open_now',   'true');
 
-  const url = `https://api.foursquare.com/v3/places/search?${searchParams.toString()}`;
+  const url = `https://places-api.foursquare.com/places/search?${searchParams.toString()}`;
 
   try {
     // Use node-fetch polyfill approach — works on all Vercel Node runtimes
     const fsqResponse = await fetchWithNode(url, {
-      'Authorization': process.env.FOURSQUARE_API_KEY,
-      'Accept':        'application/json',
+      'Authorization':      `Bearer ${process.env.FOURSQUARE_API_KEY}`,
+      'Accept':             'application/json',
+      'X-Places-Api-Version': '2025-02-05',
     });
 
     if (fsqResponse.status !== 200) {
