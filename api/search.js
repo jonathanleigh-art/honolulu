@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     const fsqResponse = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${process.env.FOURSQUARE_API_KEY}`,
-        'Accept': 'application/json'
+        'Accept': 'application/json',
         'v': '20231010'
       },
     });
