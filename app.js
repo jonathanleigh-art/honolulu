@@ -26,7 +26,8 @@ const state = {
 };
 
 // ─── FOURSQUARE CATEGORY IDs ──────────────────────────────────
-// https://docs.foursquare.com/data-products/docs/places-categories
+// Foursquare v3 IDs sent to the API as a best-effort hint.
+// Client-side filtering (name-based) is the reliable backup.
 const FSQ_CATEGORIES = {
     outdoor:   '16000',          // Outdoors & Recreation
     food:      '13000',          // Dining and Drinking
@@ -34,6 +35,15 @@ const FSQ_CATEGORIES = {
     nightlife: '10032,13003',    // Nightlife Spot + Bar
     shopping:  '17000',          // Retail
     all:       '',               // No category filter — return everything
+};
+
+// Keyword sets used for reliable client-side category classification
+const CAT_KEYWORDS = {
+    food:      /restaurant|food|cafe|coffee|bakery|sushi|pizza|burger|ramen|diner|dining|brunch|eat|drink|bar and grill|plate lunch|shave ice|dessert/i,
+    nightlife: /bar|nightclub|nightlife|club|lounge|pub|brewery|cocktail|speakeasy|karaoke/i,
+    arts:      /museum|art|gallery|theater|theatre|cinema|entertainment|culture|historic|monument|palace|aquarium|zoo|planetarium/i,
+    shopping:  /shopping|store|retail|mall|boutique|market|shop|goods|pharmacy/i,
+    outdoor:   /park|beach|trail|hike|hiking|outdoor|nature|garden|bay|ocean|pool|lookout|viewpoint|crater|mountain|waterfall/i,
 };
 
 // Foursquare price: 1($) 2($$) 3($$$) 4($$$$)
@@ -333,12 +343,23 @@ function normalizeFSQPlace(place) {
     const catName = cat.name || '';
     const catId   = String(cat.id || '');
 
-    // Map FSQ category → our category
-    let category = 'outdoor';
+    // 1) Try old v3 numeric-prefix mapping
+    let category = null;
     if      (catId.startsWith('13')) category = 'food';
     else if (catId.startsWith('10')) category = catId === '10032' ? 'nightlife' : 'arts';
     else if (catId.startsWith('17')) category = 'shopping';
     else if (catId.startsWith('16')) category = 'outdoor';
+
+    // 2) Reliable name-based fallback (works regardless of API version)
+    if (!category) {
+        const text = `${place.name} ${catName}`;
+        if      (CAT_KEYWORDS.nightlife.test(text)) category = 'nightlife';
+        else if (CAT_KEYWORDS.food.test(text))      category = 'food';
+        else if (CAT_KEYWORDS.arts.test(text))      category = 'arts';
+        else if (CAT_KEYWORDS.shopping.test(text))  category = 'shopping';
+        else if (CAT_KEYWORDS.outdoor.test(text))   category = 'outdoor';
+        else                                        category = 'outdoor';
+    }
 
     const lat = place.geocodes?.main?.latitude;
     const lng = place.geocodes?.main?.longitude;
@@ -543,7 +564,7 @@ function showDetail(activity, isLive) {
 
 // ─── FOURSQUARE LIVE SEARCH ───────────────────────────────────
 async function runFoursquareSearch() {
-    const { time, budget, category, radius, sort } = state.filters;
+    const { time, budget, category, group, radius, sort } = state.filters;
 
     let searchLat, searchLng, searchRadius;
     if (state.userLat !== null) {
@@ -563,13 +584,15 @@ async function runFoursquareSearch() {
         sort:   sort,
     });
 
+    // Send category IDs as a hint — API may or may not honour them,
+    // so we ALSO filter client-side below.
     const catIds = FSQ_CATEGORIES[category];
     if (catIds) params.set('categories', catIds);
 
     const fsqPrice = BUDGET_TO_FSQ_PRICE[budget];
     if (fsqPrice)  params.set('price', fsqPrice);
 
-    // Pass open_now when a specific time is selected (uses current real time)
+    // open_now filters to currently-open venues
     if (time !== 'all') params.set('open_now', 'true');
 
     const response = await fetch(`/api/search?${params.toString()}`);
@@ -582,7 +605,45 @@ async function runFoursquareSearch() {
     const data = await response.json();
     let results = (data.results || []).map(normalizeFSQPlace);
 
-    if (budget === '0') results = results.filter(a => a.priceLevel === 0);
+    // ── Client-side filters (reliable regardless of API param support) ──
+
+    // Category: always filter by name-based category after normalization
+    if (category !== 'all') {
+        results = results.filter(a => a.category === category);
+    }
+
+    // Budget / price
+    if (budget === '0') {
+        results = results.filter(a => a.priceLevel === 0);
+    } else if (budget !== 'all') {
+        const b = parseInt(budget);
+        if (b === 1) results = results.filter(a => a.priceLevel === 1);
+        if (b === 2) results = results.filter(a => a.priceLevel === 2);
+        if (b === 3) results = results.filter(a => a.priceLevel >= 3);
+    }
+
+    // Group size — heuristic based on venue type
+    if (group !== 'all') {
+        results = results.filter(a => {
+            // Large groups (6+): avoid tiny intimate bars/lounges
+            if (group === 'group') {
+                return ['outdoor', 'food', 'arts', 'shopping'].includes(a.category);
+            }
+            // Solo / couple / small group: everything works
+            return true;
+        });
+    }
+
+    // Time of day — filter by inferred best times (like curated mode)
+    if (time !== 'all') {
+        results = results.filter(a => (a.times || []).includes(time));
+    }
+
+    // Sort client-side by rating when API sort may not return RATING
+    if (sort === 'rating') {
+        results.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+
     results = attachDistances(results);
 
     return results;
