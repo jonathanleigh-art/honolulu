@@ -329,11 +329,11 @@ function guessEmoji(name, categoryName) {
 
 // ─── NORMALIZE FOURSQUARE RESULT → our format ────────────────
 function normalizeFSQPlace(place) {
-   const lat = place.geocodes?.main?.latitude;
-   const lng = place.geocodes?.main?.longitude; 
-   const cat = place.categories?.[0] || {};
+    const cat = place.categories?.[0] || {};
     const catName = cat.name || '';
     const catId   = String(cat.id || '');
+    const lat = place.geocodes?.main?.latitude;
+    const lng = place.geocodes?.main?.longitude;
 
     // Map FSQ category → our category
     let category = 'outdoor';
