@@ -1,0 +1,35 @@
+export default async function handler(req, res) {
+  // 1. Grab the search parameters sent from your frontend
+  const { ll, radius, categories, price, sort } = req.query;
+
+  // 2. Build the Foursquare URL
+  const searchParams = new URLSearchParams({
+    ll,
+    radius,
+    limit: '25',
+    fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
+    sort: sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
+  });
+
+  if (categories) searchParams.set('categories', categories);
+  if (price) searchParams.set('price', price);
+
+  const url = `https://api.foursquare.com/v3/places/search?${searchParams.toString()}`;
+
+  try {
+    const fsqResponse = await fetch(url, {
+      headers: {
+        // This pulls the key from Vercel's secret settings (Step 3)
+        'Authorization': process.env.FOURSQUARE_API_KEY,
+        'Accept': 'application/json',
+      },
+    });
+
+    const data = await fsqResponse.json();
+    
+    // 3. Send the data back to your app
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch from Foursquare' });
+  }
+}
