@@ -1,7 +1,6 @@
 export default async function handler(req, res) {
   const { ll, radius, categories, price, sort } = req.query;
 
-  // 1. Safety Check: Is the API Key actually there?
   if (!process.env.FOURSQUARE_API_KEY) {
     return res.status(500).json({ error: 'API Key missing in Vercel Settings' });
   }
