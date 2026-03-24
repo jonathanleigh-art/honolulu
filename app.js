@@ -559,7 +559,7 @@ async function runFoursquareSearch() {
 
     // Format parameters correctly for your Vercel API
     const params = new URLSearchParams({
-        ll: `${searchLat},${searchLng}`, // Combines lat and lng into 'll'
+        ll: `${searchLat},${searchLng}`,
         radius: String(searchRadius),
         categories: FSQ_CATEGORIES[category] || '',
         price: BUDGET_TO_FSQ_PRICE[budget] || '',
