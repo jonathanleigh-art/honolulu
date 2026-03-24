@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What we doing rn? 🤙</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-icon">🤙</span>
+                <div class="logo-text">
+                    <h1>What we doing rn?</h1>
+                    <span>Honolulu activities, on demand</span>
+                </div>
+            </div>
+            <span class="mode-badge live" style="font-size:0.72rem;padding:4px 12px">🟠 Foursquare Live</span>
+        </div>
+    </header>
+
+    <!-- ===== DETAIL MODAL ===== -->
+    <div id="detail-modal" class="overlay hidden">
+        <div class="modal detail-modal">
+            <button id="close-detail" class="close-btn">✕</button>
+            <div id="detail-body"></div>
+        </div>
+    </div>
+
+    <!-- ===== MAIN LAYOUT ===== -->
+    <div class="layout">
+
+        <!-- Filters Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-inner">
+
+                <div class="mode-row">
+                    <div class="mode-badge" id="mode-badge">Curated List</div>
+                    <button id="location-btn" class="location-btn" title="Use my location">📍 Use my location</button>
+                </div>
+
+                <div id="location-status" class="location-status hidden"></div>
+
+                <div class="filter-group">
+                    <label class="filter-label">🕐 Time of Day</label>
+                    <div class="chips" id="time-chips">
+                        <button class="chip active" data-val="all">Any Time</button>
+                        <button class="chip" data-val="morning">🌅 Morning</button>
+                        <button class="chip" data-val="afternoon">☀️ Afternoon</button>
+                        <button class="chip" data-val="evening">🌇 Evening</button>
+                        <button class="chip" data-val="night">🌙 Night</button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">💰 Budget</label>
+                    <div class="chips" id="budget-chips">
+                        <button class="chip active" data-val="all">Any</button>
+                        <button class="chip" data-val="0">Free</button>
+                        <button class="chip" data-val="1">$</button>
+                        <button class="chip" data-val="2">$$</button>
+                        <button class="chip" data-val="3">$$$</button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">👥 Group Size</label>
+                    <div class="chips" id="group-chips">
+                        <button class="chip active" data-val="all">Any</button>
+                        <button class="chip" data-val="solo">Solo</button>
+                        <button class="chip" data-val="couple">Couple</button>
+                        <button class="chip" data-val="small">Group 3–6</button>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">🏄 Category</label>
+                    <div class="chips" id="category-chips">
+                        <button class="chip active" data-val="all">All</button>
+                        <button class="chip" data-val="outdoor">🌿 Outdoor</button>
+                        <button class="chip" data-val="food">🍜 Food &amp; Drink</button>
+                        <button class="chip" data-val="arts">🎨 Arts &amp; Culture</button>
+                        <button class="chip" data-val="nightlife">🎶 Nightlife</button>
+                        <button class="chip" data-val="shopping">🛍 Shopping</button>
+                    </div>
+                </div>
+
+                <div class="filter-group" id="radius-group" style="display:none">
+                    <label class="filter-label">📡 Nearby (from you)</label>
+                    <div class="chips" id="radius-chips">
+                        <button class="chip active" data-val="all">Any distance</button>
+                        <button class="chip" data-val="2">Within 2 mi</button>
+                        <button class="chip" data-val="5">Within 5 mi</button>
+                        <button class="chip" data-val="10">Within 10 mi</button>
+                    </div>
+                </div>
+
+                <div class="filter-group" id="sort-group" style="display:none">
+                    <label class="filter-label">↕️ Sort by</label>
+                    <div class="chips" id="sort-chips">
+                        <button class="chip active" data-val="rating">⭐ Rating</button>
+                        <button class="chip" data-val="distance">📍 Distance</button>
+                    </div>
+                </div>
+
+                <button id="search-btn" class="search-btn">🔍 What can we do?</button>
+
+            </div>
+        </aside>
+
+        <!-- Results Area -->
+        <main class="results-area">
+            <div class="results-header" id="results-header">
+                <h2>Aloha! Let's figure it out 🌺</h2>
+                <p>Set your vibe and hit the button.</p>
+            </div>
+            <div id="results-grid" class="results-grid">
+                <div class="empty-state">
+                    <div class="empty-emoji">🏝️</div>
+                    <p class="empty-title">So what's the move?</p>
+                    <p class="empty-hint">Pick your filters and tap <strong>What can we do?</strong></p>
+                </div>
+            </div>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p id="loading-text">Figuring out the move…</p>
+            </div>
+        </main>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
