@@ -19,9 +19,9 @@ export default async function handler(req, res) {
   try {
     const fsqResponse = await fetch(url, {
       headers: {
-        // This pulls the key from Vercel's secret settings (Step 3)
         'Authorization': process.env.FOURSQUARE_API_KEY,
         'Accept': 'application/json',
+        'X-Places-Api-Version': '20231010',
       },
     });
 
