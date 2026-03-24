@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     limit: '25',
     fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
     sort: sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
-    v: '20231010' // Foursquare Version
+    v: '20231010' 
   });
 
   if (categories && categories !== "") searchParams.set('categories', categories);
@@ -24,6 +24,7 @@ export default async function handler(req, res) {
       headers: {
         'Authorization': `Bearer ${process.env.FOURSQUARE_API_KEY}`,
         'Accept': 'application/json'
+        'v': '20231010'
       },
     });
 
