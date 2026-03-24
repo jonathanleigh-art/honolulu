@@ -1,9 +1,7 @@
-// CommonJS syntax — required for Vercel serverless functions
-// without a package.json "type": "module" declaration
-const https = require('https');
+// Uses native fetch (Node 18+, available on all Vercel runtimes)
+// CommonJS export required — no "type": "module" in package.json
 
 module.exports = async function handler(req, res) {
-  // CORS headers so the browser can call this from any origin
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -15,11 +13,12 @@ module.exports = async function handler(req, res) {
 
   const { ll, radius, categories, price, sort, open_now } = req.query;
 
+  // Only pass parameters confirmed to work on the new places-api.foursquare.com endpoint.
+  // NOTE: the "fields" selector is only valid on /places/{id}, NOT on /places/search.
   const searchParams = new URLSearchParams({
     ll:     ll     || '21.3069,-157.8583',
     radius: radius || '14000',
     limit:  '25',
-    fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
     sort:   sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
   });
 
@@ -29,37 +28,37 @@ module.exports = async function handler(req, res) {
 
   const url = `https://places-api.foursquare.com/places/search?${searchParams.toString()}`;
 
-  try {
-    // Use node-fetch polyfill approach — works on all Vercel Node runtimes
-    const fsqResponse = await fetchWithNode(url, {
-      'Authorization':      `Bearer ${process.env.FOURSQUARE_API_KEY}`,
-      'Accept':             'application/json',
-      'X-Places-Api-Version': '2025-02-05',
-    });
+  // AbortController gives us a clean timeout that works with native fetch
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 9000);
 
-    if (fsqResponse.status !== 200) {
-      return res.status(fsqResponse.status).json({ error: `Foursquare error ${fsqResponse.status}: ${fsqResponse.body}` });
+  try {
+    const fsqResponse = await fetch(url, {
+      method:  'GET',
+      headers: {
+        'Authorization':       `Bearer ${process.env.FOURSQUARE_API_KEY}`,
+        'Accept':              'application/json',
+        'X-Places-Api-Version': '2025-02-05',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const body = await fsqResponse.text();
+
+    if (!fsqResponse.ok) {
+      return res.status(fsqResponse.status).json({
+        error: `Foursquare error ${fsqResponse.status}: ${body}`,
+      });
     }
 
-    return res.status(200).json(JSON.parse(fsqResponse.body));
+    return res.status(200).json(JSON.parse(body));
 
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'Foursquare request timed out after 9s' });
+    }
     return res.status(500).json({ error: `Server error: ${err.message}` });
   }
 };
-
-// Native Node https wrapper — no external packages needed, works on all runtimes
-function fetchWithNode(url, headers) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, body }));
-    });
-    req.on('error', reject);
-    req.setTimeout(8000, () => {
-      req.destroy();
-      reject(new Error('Foursquare request timed out'));
-    });
-  });
-}
