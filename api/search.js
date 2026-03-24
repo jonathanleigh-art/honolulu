@@ -19,7 +19,9 @@ module.exports = async function handler(req, res) {
     ll:     ll     || '21.3069,-157.8583',
     radius: radius || '14000',
     limit:  '25',
-    sort:   sort === 'distance' ? 'DISTANCE' : 'RELEVANCE',
+    sort:   sort === 'distance' ? 'DISTANCE' : sort === 'rating' ? 'RATING' : 'RELEVANCE',
+    // Request the specific fields we need (rating + price not returned by default)
+    fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
   });
 
   if (categories && categories !== '') searchParams.set('categories', categories);
