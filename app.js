@@ -560,7 +560,7 @@ async function runFoursquareSearch() {
     // UPDATED: We now call OUR OWN API route instead of Foursquare directly
     const params = new URLSearchParams({
        ll: `${searchLat},${searchLng}`,
-       radius: searchRadius ? String(searchRadius) : "10000",
+       radius: String(searchRadius),
         categories: FSQ_CATEGORIES[category] || '',
         price: BUDGET_TO_FSQ_PRICE[budget] || '',
         sort: sort
