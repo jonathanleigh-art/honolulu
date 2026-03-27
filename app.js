@@ -364,19 +364,22 @@ function normalizeFSQPlace(place) {
     const lat = place.geocodes?.main?.latitude;
     const lng = place.geocodes?.main?.longitude;
 
-    // rating + hours are Foursquare Premium fields — not available on free Pro tier.
-    // Curated spots still carry real ratings; live results default to null.
+    // FSQ rating is 0–10; normalize to 0–5. Present with premium credits.
     const rawRating = place.rating;
-    const rating    = rawRating ? parseFloat((rawRating / 2).toFixed(1)) : null;
+    const rating    = rawRating != null ? parseFloat((rawRating / 2).toFixed(1)) : null;
 
-    // price IS a free Pro field — may still be null if the venue has no price data.
+    // FSQ price: 1–4; map to our 1–3 scale. Present with premium credits.
     const fsqPrice   = place.price;
     const priceLevel = fsqPrice == null
-        ? null           // null = unknown (distinct from 0 = "Free")
+        ? null                                              // unknown
         : fsqPrice <= 1 ? 1 : fsqPrice === 2 ? 2 : 3;
 
-    // hours.open_now is Premium; rely on the API's open_now search param instead
+    // hours.open_now is a premium field; will be present when credits are active.
     const openNow = place.hours?.open_now ?? null;
+
+    // website / tel — premium bonus fields, used in detail modal if present
+    const website = place.website || null;
+    const tel     = place.tel     || null;
 
     const addressParts = [
         place.location?.address,
@@ -390,13 +393,15 @@ function normalizeFSQPlace(place) {
         category,
         emoji:       guessEmoji(place.name, catName),
         lat, lng,
-        rating:      rating || 4.0,
+        rating:      rating ?? 4.0,
         priceLevel,
         address,
         description: place.description || `${catName} in Honolulu`,
         times:       inferTimes(category, catName),
         groupSizes:  ['solo', 'couple', 'small'],
         openNow,
+        website,
+        tel,
         mapsUrl:     lat && lng
             ? `https://maps.google.com/?q=${lat},${lng}`
             : `https://maps.google.com/?q=${encodeURIComponent(place.name + ' Honolulu Hawaii')}`,
@@ -559,7 +564,15 @@ function showDetail(activity, isLive) {
                 <h4>Address</h4>
                 <p>${activity.address}</p>
             </div>` : ''}
-            <a href="${activity.mapsUrl}" target="_blank" rel="noopener" class="map-link">🗺️ Open in Google Maps</a>
+            ${activity.tel ? `
+            <div class="detail-section">
+                <h4>Phone</h4>
+                <p><a href="tel:${activity.tel}" style="color:inherit">${activity.tel}</a></p>
+            </div>` : ''}
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+                <a href="${activity.mapsUrl}" target="_blank" rel="noopener" class="map-link">🗺️ Open in Google Maps</a>
+                ${activity.website ? `<a href="${activity.website}" target="_blank" rel="noopener" class="map-link">🌐 Website</a>` : ''}
+            </div>
         </div>
     `;
     document.getElementById('detail-modal').classList.remove('hidden');
@@ -595,8 +608,9 @@ async function runFoursquareSearch() {
     const fsqPrice = BUDGET_TO_FSQ_PRICE[budget];
     if (fsqPrice)  params.set('price', fsqPrice);
 
-    // open_now filters to currently-open venues
-    if (time !== 'all') params.set('open_now', 'true');
+    // Do NOT send open_now — "Morning" means best time of day, not "open right now".
+    // Sending open_now=true for Evening at 10am would drop all bars. Filtering
+    // is handled client-side via inferTimes() below.
 
     const response = await fetch(`/api/search?${params.toString()}`);
 
@@ -615,15 +629,13 @@ async function runFoursquareSearch() {
         results = results.filter(a => a.category === category);
     }
 
-    // Budget / price
-    // priceLevel === null means "unknown" (free tier doesn't return price for all venues).
-    // Only filter when we actually have price data.
+    // Budget / price — premium credits return real price data for most venues.
+    // Venues with no price data (priceLevel === null) are kept to avoid hiding
+    // parks and free attractions that legitimately have no price tier.
     if (budget === '0') {
-        // Strictly free: price must be explicitly 0 (parks, beaches, etc.)
-        results = results.filter(a => a.priceLevel === 0);
+        results = results.filter(a => a.priceLevel === 0 || a.priceLevel === null);
     } else if (budget !== 'all') {
         const b = parseInt(budget);
-        // Only drop venues where we KNOW the price doesn't match — keep nulls
         if (b === 1) results = results.filter(a => a.priceLevel === null || a.priceLevel === 1);
         if (b === 2) results = results.filter(a => a.priceLevel === null || a.priceLevel === 2);
         if (b === 3) results = results.filter(a => a.priceLevel === null || a.priceLevel >= 3);
