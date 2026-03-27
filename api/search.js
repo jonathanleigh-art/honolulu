@@ -20,8 +20,10 @@ module.exports = async function handler(req, res) {
     radius: radius || '14000',
     limit:  '25',
     sort:   sort === 'distance' ? 'DISTANCE' : sort === 'rating' ? 'RATING' : 'RELEVANCE',
-    // Request the specific fields we need (rating + price not returned by default)
-    fields: 'fsq_id,name,geocodes,location,categories,hours,rating,price,description',
+    // Only request FREE (Pro-tier) fields.
+    // rating, hours, description are Foursquare Premium fields — requesting them
+    // triggers a 429 even when Pro credits remain.
+    fields: 'fsq_id,name,geocodes,location,categories,price',
   });
 
   if (categories && categories !== '') searchParams.set('categories', categories);
