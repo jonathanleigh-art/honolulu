@@ -20,10 +20,8 @@ module.exports = async function handler(req, res) {
     radius: radius || '14000',
     limit:  '25',
     sort:   sort === 'distance' ? 'DISTANCE' : sort === 'rating' ? 'RATING' : 'RELEVANCE',
-    // Only request FREE (Pro-tier) fields.
-    // rating, hours, description are Foursquare Premium fields — requesting them
-    // triggers a 429 even when Pro credits remain.
-    fields: 'fsq_id,name,geocodes,location,categories,price',
+    // NOTE: the new places-api.foursquare.com does NOT support a "fields" param
+    // on /places/search — only on /places/{id}. The API returns its default fields.
   });
 
   if (categories && categories !== '') searchParams.set('categories', categories);
