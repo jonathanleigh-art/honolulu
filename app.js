@@ -329,6 +329,23 @@ const CATEGORY_EMOJI_MAP = [
     { keywords: ['lookout','viewpoint','overlook'],      emoji: '👁️' },
 ];
 
+// Infer a price tier when Foursquare doesn't return one (very common on search endpoint).
+// Returns 0 (free), 1 ($), 2 ($$), 3 ($$$), or null (truly unknown).
+function guessPriceFromCategory(catName, category) {
+    const n = (catName || '').toLowerCase();
+    if (category === 'outdoor') return 0; // parks, beaches, trails = free
+    if (/fast food|food truck|counter|farmers market|shave ice|plate lunch|bento/i.test(n)) return 1;
+    if (/coffee|cafe|café|bakery|deli|sandwich|smoothie|juice|boba|dessert/i.test(n)) return 1;
+    if (/fine dining|omakase|steakhouse|rooftop|upscale/i.test(n)) return 3;
+    if (/restaurant|dining|bistro|tavern|grill|sushi|ramen|thai|chinese|korean|hawaiian/i.test(n)) return 2;
+    if (/bar|pub|brewery|cocktail|lounge|nightclub|club/i.test(n)) return 2;
+    if (category === 'arts') return 2;
+    if (category === 'shopping') return 2;
+    if (category === 'nightlife') return 2;
+    if (category === 'food') return 2;
+    return null;
+}
+
 function guessEmoji(name, categoryName) {
     const text = (name + ' ' + (categoryName || '')).toLowerCase();
     for (const { keywords, emoji } of CATEGORY_EMOJI_MAP) {
@@ -368,11 +385,13 @@ function normalizeFSQPlace(place) {
     const rawRating = place.rating;
     const rating    = rawRating != null ? parseFloat((rawRating / 2).toFixed(1)) : null;
 
-    // FSQ price: 1–4; map to our 1–3 scale. Present with premium credits.
-    const fsqPrice   = place.price;
-    const priceLevel = fsqPrice == null
-        ? null                                              // unknown
-        : fsqPrice <= 1 ? 1 : fsqPrice === 2 ? 2 : 3;
+    // FSQ price: integer 1–4 or string "$"–"$$$$" depending on API version.
+    // Fall back to category-based inference when the API doesn't return price.
+    const fsqPrice = place.price;
+    const apiPrice = fsqPrice == null      ? null
+        : typeof fsqPrice === 'string'     ? fsqPrice.length          // "$" → 1
+        : fsqPrice <= 1 ? 1 : fsqPrice === 2 ? 2 : 3;                // int 1-4 → 1-3
+    const priceLevel = apiPrice ?? guessPriceFromCategory(catName, category);
 
     // hours.open_now is a premium field; will be present when credits are active.
     const openNow = place.hours?.open_now ?? null;
@@ -629,16 +648,18 @@ async function runFoursquareSearch() {
         results = results.filter(a => a.category === category);
     }
 
-    // Budget / price — premium credits return real price data for most venues.
-    // Venues with no price data (priceLevel === null) are kept to avoid hiding
-    // parks and free attractions that legitimately have no price tier.
-    if (budget === '0') {
-        results = results.filter(a => a.priceLevel === 0 || a.priceLevel === null);
-    } else if (budget !== 'all') {
+    // Budget / price — priceLevel is always set now (API value or category inference).
+    // Null only remains for truly unclassifiable venues; keep those to avoid empty results.
+    if (budget !== 'all') {
         const b = parseInt(budget);
-        if (b === 1) results = results.filter(a => a.priceLevel === null || a.priceLevel === 1);
-        if (b === 2) results = results.filter(a => a.priceLevel === null || a.priceLevel === 2);
-        if (b === 3) results = results.filter(a => a.priceLevel === null || a.priceLevel >= 3);
+        results = results.filter(a => {
+            if (a.priceLevel === null) return true; // can't classify — keep
+            if (b === 0) return a.priceLevel === 0;
+            if (b === 1) return a.priceLevel === 1;
+            if (b === 2) return a.priceLevel === 2;
+            if (b === 3) return a.priceLevel >= 3;
+            return true;
+        });
     }
 
     // Group size — heuristic based on venue type
