@@ -364,17 +364,19 @@ function normalizeFSQPlace(place) {
     const lat = place.geocodes?.main?.latitude;
     const lng = place.geocodes?.main?.longitude;
 
-    // FSQ rating is 0–10; normalize to 0–5
+    // rating + hours are Foursquare Premium fields — not available on free Pro tier.
+    // Curated spots still carry real ratings; live results default to null.
     const rawRating = place.rating;
     const rating    = rawRating ? parseFloat((rawRating / 2).toFixed(1)) : null;
 
-    // FSQ price: 1–4; map to our 1–3 scale
-    const fsqPrice = place.price;
-    const priceLevel = fsqPrice === undefined || fsqPrice === null
-        ? 0
+    // price IS a free Pro field — may still be null if the venue has no price data.
+    const fsqPrice   = place.price;
+    const priceLevel = fsqPrice == null
+        ? null           // null = unknown (distinct from 0 = "Free")
         : fsqPrice <= 1 ? 1 : fsqPrice === 2 ? 2 : 3;
 
-    const openNow = place.hours?.open_now;
+    // hours.open_now is Premium; rely on the API's open_now search param instead
+    const openNow = place.hours?.open_now ?? null;
 
     const addressParts = [
         place.location?.address,
@@ -451,7 +453,8 @@ function starsHtml(rating) {
 }
 
 function priceHtml(level) {
-    if (!level) return '<span class="price">Free</span>';
+    if (level === 0)    return '<span class="price">Free</span>';
+    if (level === null || level === undefined) return '';   // unknown — show nothing
     return '<span class="price">' + '$'.repeat(Math.min(level, 3)) + '</span>';
 }
 
@@ -613,13 +616,17 @@ async function runFoursquareSearch() {
     }
 
     // Budget / price
+    // priceLevel === null means "unknown" (free tier doesn't return price for all venues).
+    // Only filter when we actually have price data.
     if (budget === '0') {
+        // Strictly free: price must be explicitly 0 (parks, beaches, etc.)
         results = results.filter(a => a.priceLevel === 0);
     } else if (budget !== 'all') {
         const b = parseInt(budget);
-        if (b === 1) results = results.filter(a => a.priceLevel === 1);
-        if (b === 2) results = results.filter(a => a.priceLevel === 2);
-        if (b === 3) results = results.filter(a => a.priceLevel >= 3);
+        // Only drop venues where we KNOW the price doesn't match — keep nulls
+        if (b === 1) results = results.filter(a => a.priceLevel === null || a.priceLevel === 1);
+        if (b === 2) results = results.filter(a => a.priceLevel === null || a.priceLevel === 2);
+        if (b === 3) results = results.filter(a => a.priceLevel === null || a.priceLevel >= 3);
     }
 
     // Group size — heuristic based on venue type
